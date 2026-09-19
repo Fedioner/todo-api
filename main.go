@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
-	"education/cmd"
-	"education/storage"
+	"github.com/Fedioner/todo-api/cmd"
+	"github.com/Fedioner/todo-api/storage"
 	"fmt"
 	"os"
 )

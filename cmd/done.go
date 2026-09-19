@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"bufio"
-	"education/models"
-	"education/storage"
+	"github.com/Fedioner/todo-api/models"
+	"github.com/Fedioner/todo-api/storage"
 	"time"
 )
 

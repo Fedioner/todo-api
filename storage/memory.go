@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"education/models"
+	"github.com/Fedioner/todo-api/models"
 	"fmt"
 )
 

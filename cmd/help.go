@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"education/models"
+	"github.com/Fedioner/todo-api/models"
 	"fmt"
 	"time"
 )

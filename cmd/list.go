@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"education/models"
-	"education/storage"
+	"github.com/Fedioner/todo-api/models"
+	"github.com/Fedioner/todo-api/storage"
 	"time"
 
 	"github.com/k0kubun/pp"
