@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-todo-local}"
+      POSTGRES_DB: todo
+    volumes:
+      - todo-data:/var/lib/postgresql
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "todo", "-d", "todo"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://todo@db:5432/todo?sslmode=disable"
+      PGPASSWORD: "${POSTGRES_PASSWORD:-todo-local}"
+    ports:
+      - "127.0.0.1:${TODO_PORT:-8080}:8080"
+volumes:
+  todo-data:
