@@ -1,0 +1,22 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: todo-db
+  namespace: todo
+spec:
+  instances: 3
+  storage:
+    size: 1Gi
+  affinity:
+    nodeSelector:
+      todo-api/worker: "true"
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: required
+  bootstrap:
+    initdb:
+      database: todo
+      owner: todo
+      postInitApplicationSQLRefs:
+        configMapRefs:
+          - name: todo-db-schema
+            key: schema.sql
