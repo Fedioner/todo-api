@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: todo-deployer
+  namespace: todo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: todo-deployer
+  namespace: todo
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["todo-api"]
+    verbs: ["get", "patch", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    resourceNames: ["todo-api"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/portforward"]
+    verbs: ["get", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: todo-deployer
+  namespace: todo
+subjects:
+  - kind: ServiceAccount
+    name: todo-deployer
+    namespace: todo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: todo-deployer

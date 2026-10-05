@@ -1,0 +1,79 @@
+name: CI and release
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: Verify Compose and HTTP API
+        run: |
+          docker compose config --quiet
+          docker compose up -d --build
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:8080/readyz >/dev/null; then
+              python3 scripts/smoke.py http://127.0.0.1:8080
+              exit
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Collect container logs
+        if: failure()
+        run: docker compose logs
+      - name: Stop test stack
+        if: always()
+        run: docker compose down --volumes
+
+  publish:
+    if: github.event_name == 'push'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build and publish image
+        id: build
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf '%s' "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --use
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --build-arg "APP_VERSION=$GITHUB_SHA" \
+            --tag "$image:$GITHUB_SHA" --push --metadata-file metadata.json .
+          digest=$(python3 -c 'import json; print(json.load(open("metadata.json"))["containerimage.digest"])')
+          echo "image=$image@$digest" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    if: github.event_name == 'push' && vars.TODO_DEPLOY_ENABLED == 'true'
+    needs: publish
+    runs-on: [self-hosted, todo-lab]
+    timeout-minutes: 10
+    concurrency:
+      group: todo-lab
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+      - name: Deploy to Kubernetes and check the API
+        env:
+          KUBE_CONTEXT: ${{ vars.TODO_KUBE_CONTEXT || 'kind-todo-lab' }}
+          IMAGE: ${{ needs.publish.outputs.image }}
+        run: bash scripts/deploy-release.sh "$IMAGE" "$GITHUB_SHA"

@@ -1,10 +1,12 @@
-FROM golang:1.26.4 AS build
+FROM --platform=$BUILDPLATFORM golang:1.26.4 AS build
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd/todo-api ./cmd/todo-api
 COPY internal ./internal
-RUN CGO_ENABLED=0 go build -trimpath -o /out/todo-api ./cmd/todo-api
+RUN CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -trimpath -o /out/todo-api ./cmd/todo-api
 
 FROM gcr.io/distroless/static-debian12:nonroot
 ARG APP_VERSION=dev
