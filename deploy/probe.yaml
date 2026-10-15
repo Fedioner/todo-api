@@ -18,6 +18,7 @@ spec:
       command: ["sleep", "86400"]
       securityContext:
         runAsNonRoot: true
+        runAsUser: 100
         allowPrivilegeEscalation: false
         readOnlyRootFilesystem: true
         capabilities:
