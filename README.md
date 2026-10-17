@@ -59,7 +59,7 @@ kubectl --context kind-todo-lab -n todo port-forward svc/todo-api 8080:80
 
 ```bash
 kubectl --context kind-todo-lab apply -f deploy/probe.yaml
-kubectl --context kind-todo-lab -n todo wait --for=condition=Ready pod/todo-probe
+kubectl --context kind-todo-lab -n todo wait --for=condition=Ready pod/todo-probe --timeout=120s
 kubectl --context kind-todo-lab -n todo exec todo-probe -- sh -c '
   while true; do
     date -u
@@ -68,7 +68,23 @@ kubectl --context kind-todo-lab -n todo exec todo-probe -- sh -c '
   done'
 ```
 
-В другом терминале выведите `kubectl --context kind-todo-lab -n todo get pods -o wide` и удалите один выбранный Pod API. Сравните ответы клиента и дождитесь восстановления трёх готовых реплик. Для проверки PostgreSQL зафиксируйте имя первичного экземпляра через `kubectl --context kind-todo-lab -n todo get cluster todo-db` и сохраните идентификатор контрольной задачи. После переключения проверьте запись новой задачи и чтение прежней. Измерения отдельных отказов выполняйте по очереди.
+В другом терминале выведите `kubectl --context kind-todo-lab -n todo get pods -o wide` и удалите один выбранный Pod API. Сравните ответы клиента и дождитесь восстановления трёх готовых реплик. Измерения отдельных отказов выполняйте по очереди.
+
+Для проверки PostgreSQL создайте контрольную задачу и сохраните её идентификатор. На стенде с именем `todo-lab` команды ниже останавливают рабочий узел с первичным экземпляром БД.
+
+```bash
+primary=$(kubectl --context kind-todo-lab -n todo get cluster todo-db \
+  -o jsonpath='{.status.currentPrimary}')
+node=$(kubectl --context kind-todo-lab -n todo get pod "$primary" \
+  -o jsonpath='{.spec.nodeName}')
+case "$node" in
+  todo-lab-worker|todo-lab-worker2|todo-lab-worker3) docker stop --timeout 1 "$node" ;;
+  *) echo "Узел не относится к стенду todo-lab: $node" >&2 ;;
+esac
+kubectl --context kind-todo-lab -n todo get cluster todo-db -w
+```
+
+После смены первичного экземпляра остановите просмотр через Ctrl+C. Проверьте чтение контрольной задачи и создание новой. Затем верните узел в кластер командой `docker start "$node"` и дождитесь готовности трёх экземпляров БД.
 
 Логические узлы находятся на одном компьютере. Отказ Docker Desktop или самого компьютера останавливает стенд целиком. Репликация PostgreSQL настроена асинхронно, поэтому при переключении возможна потеря ещё не доставленных на реплики изменений.
 
